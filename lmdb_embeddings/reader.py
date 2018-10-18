@@ -48,7 +48,10 @@ class LmdbEmbeddingsReader:
         :return np.array
         """
         with self.environment.begin() as transaction:
-            word_vector = transaction.get(word.encode(encoding = 'UTF-8'))
+            word_vector = None
+            encoded_word = word.encode(encoding = 'UTF-8')
+            if not LmdbEmbeddingsReader._word_too_long(encoded_word, self.environment):
+                word_vector = transaction.get(encoded_word)
 
             if word_vector is None:
                 raise exceptions.MissingWordError(
@@ -56,3 +59,12 @@ class LmdbEmbeddingsReader:
                 )
 
             return self.unserializer(word_vector)
+
+    @staticmethod
+    def _word_too_long(encoded_word, environment):
+        """ Is a given encoded word too long for the LMDB
+        environment?
+
+        :return bool
+        """
+        return len(encoded_word) > environment.max_key_size()
